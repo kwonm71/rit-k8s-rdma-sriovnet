@@ -516,3 +516,32 @@ func GetPfMaxSendingRate(pfNetdevName string) (rate uint, err error) {
 func GetCurrentVfCount(pfNetdevName string) (int, error) {
 	return getCurrentVfCount(pfNetdevName)
 }
+
+//SetMinMaxRate uses sysfs to set the min and max bandwidth for a given PF SRIOV enabled
+//device. Note: it will first attempt to set the maxVF and then then the minVF. If minVF
+//fails it will attempt to set maxVF to 0.
+func SetMinMaxRate(netDevName string, vf uint, minRate uint, maxRate uint) error {
+	vfDirName := getDeviceVfConfigDir(netDevName, vf)
+	if !dirExists(vfDirName) {
+		return fmt.Errorf("dir[%s] for vf not found", vfDirName)
+	}
+
+	maxVfFile := fileObject{
+		Path: filepath.Join(vfDirName, "max_vf_rate"),
+	}
+	if err := maxVfFile.WriteInt(int(maxRate)); err != nil {
+		return fmt.Errorf("failed to set maxRate, no changes were made: %s", err)
+	}
+
+	minVfFile := fileObject{
+		Path: filepath.Join(vfDirName, "min_vf_rate"),
+	}
+	if err := minVfFile.WriteInt(int(minRate)); err != nil {
+		if maxErr := maxVfFile.WriteInt(0); maxErr != nil {
+			return fmt.Errorf("failed to set mixRate, error reseting maxVFRate: %s", err)
+		}
+		return fmt.Errorf("failed to set mixRate, all values changed were reset: %s", err)
+	}
+
+	return nil
+}

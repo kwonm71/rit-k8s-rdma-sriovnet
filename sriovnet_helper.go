@@ -18,6 +18,7 @@ const (
 	netDevMaxVfCountFile     = "sriov_totalvfs"
 	netDevCurrentVfCountFile = "sriov_numvfs"
 	netDevVfDevicePrefix     = "virtfn"
+	netDevSriovDir           = "sriov"
 )
 
 type VfObject struct {
@@ -129,4 +130,14 @@ func GetVfPciDevList(pfNetdevName string) ([]string, error) {
 		i++
 	}
 	return vfDirList, nil
+}
+
+func getDeviceVfConfigDir(netDevName string, vfNum uint) string {
+	devDirName := netDevDeviceDir(netDevName)
+	vfDirName := filepath.Join(
+		devDirName,
+		netDevSriovDir,
+		fmt.Sprintf("%d", vfNum),
+	)
+	return vfDirName
 }
