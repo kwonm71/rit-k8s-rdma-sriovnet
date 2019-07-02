@@ -67,7 +67,6 @@ func getCurrentVfCount(pfNetdevName string) (int, error) {
 	if err != nil {
 		return 0, err
 	} else {
-		log.Println("cur_vfs = ", curVfs)
 		return curVfs, nil
 	}
 }

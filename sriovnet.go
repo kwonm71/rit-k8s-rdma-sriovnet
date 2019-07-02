@@ -2,8 +2,6 @@ package sriovnet
 
 import (
 	"fmt"
-	"github.com/satori/go.uuid"
-	"github.com/vishvananda/netlink"
 	"io/ioutil"
 	"log"
 	"net"
@@ -12,6 +10,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/satori/go.uuid"
+	"github.com/vishvananda/netlink"
 )
 
 var virtFnRe = regexp.MustCompile(`virtfn(\d+)`)
@@ -431,6 +432,87 @@ func GetNetDevicesFromPci(pciAddress string) ([]string, error) {
 	}
 	for _, netDeviceFile := range netDevicesFiles {
 		netDevices = append(netDevices, strings.TrimSpace(netDeviceFile.Name()))
-    }
+	}
 	return netDevices, nil
+}
+
+//GetAllSriovEnabledDevices returns a list of devices on a physical computer
+//that have SRIOV enabled and the current VF count > 0. Note: this scans
+//all the directories in NetSysDir variable, this should be used sparingly!!
+func GetAllSriovEnabledDevices() (devices []string) {
+	if !dirExists(NetSysDir) {
+		return
+	}
+
+	systemDevices, err := lsFilesWithPrefix(NetSysDir, "", false)
+	if err != nil {
+		return
+	}
+
+	for _, deviceDir := range systemDevices {
+		if IsSriovEnabled(deviceDir) {
+			devices = append(devices, deviceDir)
+		}
+	}
+	return
+}
+
+//GetPfMaxSendingRate gets the maximum sending rate of a given PF device name
+//the rate returned is in Mb/second
+func GetPfMaxSendingRate(pfNetdevName string) (rate uint, err error) {
+	deviceDir := netDevDeviceDir(pfNetdevName)
+	infinibandDir := filepath.Join(deviceDir, "infiniband")
+	infinibandDevices, err := lsFilesWithPrefix(infinibandDir, "", false)
+	if err != nil || len(infinibandDevices) == 0 {
+		err = fmt.Errorf("Failed to get any devices in infiniband dir[%s]", infinibandDir)
+		return
+	}
+
+	portsDir := filepath.Join(infinibandDir, infinibandDevices[0], "ports")
+	portsAvailable, err := lsFilesWithPrefix(portsDir, "", false)
+	if err != nil || len(portsDir) == 0 {
+		err = fmt.Errorf("Failed to get any ports from ports dir[%s]", portsDir)
+		return
+	}
+
+	rateFile := fileObject{
+		Path: filepath.Join(portsDir, portsAvailable[0], "rate"),
+	}
+	rateStr, err := rateFile.Read()
+	if err != nil {
+		err = fmt.Errorf("Failed to read any information from rate file[%s]: %s", rateFile.Path, err)
+		return
+	}
+	// assuming string in rate file is in the following format: 100 Gb/sec (4X EDR)
+	rateStrPieces := strings.Split(rateStr, " ")
+	if len(rateStrPieces) < 2 {
+		err = fmt.Errorf("Error rate file[%s] is not long enough, expected '100 Gb/sec'", rateFile.Path)
+		return
+	}
+
+	rateStrNum := strings.TrimSpace(rateStrPieces[0])
+	rateNum, err := strconv.ParseUint(rateStrNum, 10, 64)
+	if err != nil {
+		err = fmt.Errorf("Could not convert string rate[%s] to uint in rate file[%s]: %s", rateFile.Path, rateStrNum, err)
+		return
+	}
+
+	rateSpeedPerSec := strings.TrimSpace(rateStrPieces[1])
+	switch rateSpeedPerSec {
+	case "Mb/sec":
+		rate = uint(rateNum)
+	case "Gb/sec":
+		rate = uint(rateNum * 1000)
+	case "Tb/sec":
+		rate = uint(rateNum * 1000 * 1000)
+	default:
+		err = fmt.Errorf("Unknown rate type[%s] for rate file[%s]", rateSpeedPerSec, rateFile.Path)
+		return
+	}
+	return
+}
+
+//GetCurrentVfCount is a wrapper for the internal function
+func GetCurrentVfCount(pfNetdevName string) (int, error) {
+	return getCurrentVfCount(pfNetdevName)
 }
