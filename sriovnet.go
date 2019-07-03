@@ -436,6 +436,27 @@ func GetNetDevicesFromPci(pciAddress string) ([]string, error) {
 	return netDevices, nil
 }
 
+//GetAllSriovSupportedDevices returns a list of devices on a physical computer
+//that have SRIOV enabled and the current VF count > 0. Note: this scans
+//all the directories in NetSysDir variable, this should be used sparingly!!
+func GetAllSriovSupportedDevices() (devices []string) {
+	if !dirExists(NetSysDir) {
+		return
+	}
+
+	systemDevices, err := lsFilesWithPrefix(NetSysDir, "", false)
+	if err != nil {
+		return
+	}
+
+	for _, deviceDir := range systemDevices {
+		if IsSriovSupported(deviceDir) {
+			devices = append(devices, deviceDir)
+		}
+	}
+	return
+}
+
 //GetAllSriovEnabledDevices returns a list of devices on a physical computer
 //that have SRIOV enabled and the current VF count > 0. Note: this scans
 //all the directories in NetSysDir variable, this should be used sparingly!!
