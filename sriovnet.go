@@ -436,10 +436,11 @@ func GetNetDevicesFromPci(pciAddress string) ([]string, error) {
 	return netDevices, nil
 }
 
-//GetAllSriovSupportedDevices returns a list of devices on a physical computer
-//that have SRIOV enabled and the current VF count > 0. Note: this scans
-//all the directories in NetSysDir variable, this should be used sparingly!!
-func GetAllSriovSupportedDevices() (devices []string) {
+//GetAllRdmaSriovSupportedDevices returns a list of devices on a physical computer
+//that have SRIOV enabled and the current VF count > 0. Also the infiniband directory
+//must exist.
+func GetAllRdmaSriovSupportedDevices() (devices []string) {
+	//make sure the sys directory exists for the device
 	if !dirExists(NetSysDir) {
 		return
 	}
@@ -450,6 +451,12 @@ func GetAllSriovSupportedDevices() (devices []string) {
 	}
 
 	for _, deviceDir := range systemDevices {
+		//check if has infiniband directory for rdma devices
+		if !dirExists(filepath.Join(NetSysDir, deviceDir, "device", "infiniband")) {
+			continue
+		}
+
+		//only add if sriov is supported
 		if IsSriovSupported(deviceDir) {
 			devices = append(devices, deviceDir)
 		}
@@ -536,33 +543,4 @@ func GetPfMaxSendingRate(pfNetdevName string) (rate uint, err error) {
 //GetCurrentVfCount is a wrapper for the internal function
 func GetCurrentVfCount(pfNetdevName string) (int, error) {
 	return getCurrentVfCount(pfNetdevName)
-}
-
-//SetMinMaxRate uses sysfs to set the min and max bandwidth for a given PF SRIOV enabled
-//device. Note: it will first attempt to set the maxVF and then then the minVF. If minVF
-//fails it will attempt to set maxVF to 0.
-func SetMinMaxRate(netDevName string, vf uint, minRate uint, maxRate uint) error {
-	vfDirName := getDeviceVfConfigDir(netDevName, vf)
-	if !dirExists(vfDirName) {
-		return fmt.Errorf("dir[%s] for vf not found", vfDirName)
-	}
-
-	maxVfFile := fileObject{
-		Path: filepath.Join(vfDirName, "max_vf_rate"),
-	}
-	if err := maxVfFile.WriteInt(int(maxRate)); err != nil {
-		return fmt.Errorf("failed to set maxRate, no changes were made: %s", err)
-	}
-
-	minVfFile := fileObject{
-		Path: filepath.Join(vfDirName, "min_vf_rate"),
-	}
-	if err := minVfFile.WriteInt(int(minRate)); err != nil {
-		if maxErr := maxVfFile.WriteInt(0); maxErr != nil {
-			return fmt.Errorf("failed to set mixRate, error reseting maxVFRate: %s", err)
-		}
-		return fmt.Errorf("failed to set mixRate, all values changed were reset: %s", err)
-	}
-
-	return nil
 }
