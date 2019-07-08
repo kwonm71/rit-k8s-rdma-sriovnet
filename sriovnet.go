@@ -150,6 +150,7 @@ func UnbindVf(handle *PfNetdevHandle, vf *VfObj) error {
 	cmdFileObj := fileObject{
 		Path: cmdFile,
 	}
+	defer cmdFileObj.Close()
 	err := cmdFileObj.Write(vf.PciAddress)
 	if err != nil {
 		vf.Bound = false
@@ -162,6 +163,7 @@ func BindVf(handle *PfNetdevHandle, vf *VfObj) error {
 	cmdFileObj := fileObject{
 		Path: cmdFile,
 	}
+	defer cmdFileObj.Close()
 	err := cmdFileObj.Write(vf.PciAddress)
 	if err != nil {
 		vf.Bound = true
@@ -326,12 +328,12 @@ func ConfigVfs(handle *PfNetdevHandle, privileged bool) error {
 			err = UnbindVf(handle, vf)
 			if err != nil {
 				log.Printf("Fail to unbind err=%v\n", err)
-				break
+				continue
 			}
 			err = BindVf(handle, vf)
 			if err != nil {
 				log.Printf("Fail to bind err=%v\n", err)
-				break
+				continue
 			}
 			log.Printf("vf = %v unbind/bind completed", vf)
 		}
