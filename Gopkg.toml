@@ -43,7 +43,7 @@
 
 [[constraint]]
   name = "github.com/vishvananda/netlink"
-  version = "1.0.0"
+  branch = "master"
 
 [prune]
   go-tests = true

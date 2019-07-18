@@ -53,15 +53,15 @@
   version = "v1.3.0"
 
 [[projects]]
-  digest = "1:2d9d06cb9d46dacfdbb45f8575b39fc0126d083841a29d4fbf8d97708f43107e"
+  branch = "master"
+  digest = "1:a07b7e151542da2faa6fad16248b47d2d6d26608bb0b88952d3395278352d74b"
   name = "github.com/vishvananda/netlink"
   packages = [
     ".",
     "nl",
   ]
   pruneopts = "UT"
-  revision = "a2ad57a690f3caf3015351d2d6e1c0b95c349752"
-  version = "v1.0.0"
+  revision = "43af4161eaf6fde999a51113481e813b0be80adb"
 
 [[projects]]
   branch = "master"
